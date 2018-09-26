@@ -50,6 +50,8 @@ class FG_eval {
     // NOTE: You'll probably go back and forth between this function and
     // the Solver function below.
 
+    cout << "FG Init Start" << endl;
+
     // Initialise Cost Function
     fg[0] = 0;
 
@@ -79,6 +81,8 @@ class FG_eval {
 
 
     }
+
+    cout << "FG Constraint Start" << endl;
 
     // Setup Initial Constraints using initial conditions
     fg[x_start + 1] = vars[x_start];
@@ -146,7 +150,7 @@ MPC::~MPC() {}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
-  size_t i;
+  //size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   // Initialise state
@@ -166,16 +170,21 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // Set the number of constraints
   size_t n_constraints = 6 * N;
 
+
+  cout << "Variable Initialise" << endl;
+
+
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
   Dvector vars(n_vars);
   for (int i = 0; i < n_vars; i++) {
-    vars[i] = 0;
+    vars[i] = 0.0;
   }
 
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
-  // TODO: Set lower and upper limits for variables.
+  
+  // Set lower and upper limits for variables.
 
   // Set all non-actuator upper and lowerlimits 
   // to the max negative and positive values
@@ -197,14 +206,15 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars_upperbound[i] = 1.0;
   }
 
+  cout << "Variable Initialise End" << endl;
 
   // Lower and upper limits for the constraints
   // Should be 0 besides initial state.
   Dvector constraints_lowerbound(n_constraints);
   Dvector constraints_upperbound(n_constraints);
   for (int i = 0; i < n_constraints; i++) {
-    constraints_lowerbound[i] = 0;
-    constraints_upperbound[i] = 0;
+    constraints_lowerbound[i] = 0.0;
+    constraints_upperbound[i] = 0.0;
   }
 
   // Set constraints upper and lower bound to initial state
@@ -222,9 +232,17 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[cte_start] = cte;
   constraints_upperbound[epsi_start] = epsi;
   
+  cout << "Constraint Initialise End" << endl;
 
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);
+
+  cout << "FG Eval END" << endl;
+
+
+  // SEGMENTATION FAULT OCCURS BELOW HERE
+  // NEED TO INVESTIGATE
+
 
   //
   // NOTE: You don't have to worry about these options
@@ -244,16 +262,31 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // Change this as you see fit.
   options += "Numeric max_cpu_time          0.5\n";
 
+
+  cout << "OPTIONS END" << endl;
+
+
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
+
+  cout << "START SOLVER" << endl;
+
+  // SEGMENTATION FAULT WITH SOLVER? 
+  // NEED TO INVESTIGATE
 
   // solve the problem
   CppAD::ipopt::solve<Dvector, FG_eval>(
       options, vars, vars_lowerbound, vars_upperbound, constraints_lowerbound,
       constraints_upperbound, fg_eval, solution);
 
+
+  cout << "END SOLVER" << endl;
+
   // Check some of the solution values
   ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
+
+
+  cout << "COST START" << endl;
 
   // Cost
   auto cost = solution.obj_value;
@@ -264,6 +297,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
+
+
+  cout << "Result Start" << endl;
 
   vector<double> result;
 
@@ -276,6 +312,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     result.push_back(solution.x[y_start + i + 1]);
 
   }
+
+  cout << "Result End" << endl;
 
   return result;
 }

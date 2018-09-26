@@ -94,7 +94,7 @@ int main() {
 
 
 
-          // EDITED
+          // START
           for (int i = 0; i < ptsx.size(); i++ ) {
 
             // shift car reference angle to 90 degrees
@@ -114,6 +114,7 @@ int main() {
 
           auto coeffs = polyfit(ptsx_transform, ptsy_transform, 3);
 
+          cout << coeffs << endl;
 
           // Calculate cte and epsi
           double cte = polyeval(coeffs, 0);
@@ -135,7 +136,7 @@ int main() {
           // Solve MPC
           auto vars = mpc.Solve(state, coeffs);
 
-
+          cout << " SOLVE FINISHED" << endl;
 
 
           /*
