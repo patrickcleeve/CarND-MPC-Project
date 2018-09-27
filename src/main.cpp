@@ -93,8 +93,12 @@ int main() {
           double v = j[1]["speed"];
 
 
+          // TODO: 
+          // Adjust car coordinates
 
-          // START
+          bool debugmode = true;
+
+
           for (int i = 0; i < ptsx.size(); i++ ) {
 
             // shift car reference angle to 90 degrees
@@ -102,7 +106,7 @@ int main() {
             double shift_y = ptsy[i] - py;
 
             ptsx[i] = (shift_x * cos(0-psi) - shift_y * sin(0-psi));
-            ptsy[i] = (shift_x * sin(0-psi) - shift_y * cos(0-psi));
+            ptsy[i] = (shift_x * sin(0-psi) + shift_y * cos(0-psi));
 
           }
 
@@ -114,15 +118,13 @@ int main() {
 
           auto coeffs = polyfit(ptsx_transform, ptsy_transform, 3);
 
-          cout << coeffs << endl;
-
           // Calculate cte and epsi
           double cte = polyeval(coeffs, 0);
-          // double epsi = psi - atan(coeffs[1] + 2 * px * coeffs[2] + 3 * coeffs[3] * pow(px, 2))
           double epsi = -atan(coeffs[1]);
 
 
-          // Maybe use for latency ??
+          // USE FOR LATENCY
+          // predict vehicle state, in future, use that to control MPC
           double steer_value = j[1]["steering_angle"];
           double throttle_value =  j[1]["throttle"];
 
@@ -131,12 +133,12 @@ int main() {
           state << 0, 0, 0, v, cte, epsi;
 
 
-          cout << " TEST POINT " << endl;
+          if (debugmode) { cout << " SOLVE START " << endl; };
           
           // Solve MPC
           auto vars = mpc.Solve(state, coeffs);
 
-          cout << " SOLVE FINISHED" << endl;
+          if (debugmode) { cout << " SOLVE FINISHED" << endl; };
 
 
           /*
@@ -148,7 +150,7 @@ int main() {
 
 
 
-          double Lf = 2.67;
+          const double Lf = 2.67;
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -200,7 +202,7 @@ int main() {
 
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          if (debugmode) { std::cout << msg << std::endl; };
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.

@@ -9,6 +9,8 @@ using CppAD::AD;
 size_t N = 10;
 double dt = 0.1;
 
+bool debugmode = true;
+
 // This value assumes the model presented in the classroom is used.
 //
 // It was obtained by measuring the radius formed by running the vehicle in the
@@ -50,7 +52,7 @@ class FG_eval {
     // NOTE: You'll probably go back and forth between this function and
     // the Solver function below.
 
-    cout << "FG Init Start" << endl;
+    if (debugmode) { cout << "FG COST INIT START " << endl; };
 
     // Initialise Cost Function
     fg[0] = 0;
@@ -82,7 +84,7 @@ class FG_eval {
 
     }
 
-    cout << "FG Constraint Start" << endl;
+    if (debugmode) { cout << "FG CONSTRAINT START" << endl; };
 
     // Setup Initial Constraints using initial conditions
     fg[x_start + 1] = vars[x_start];
@@ -130,10 +132,10 @@ class FG_eval {
       // epsi[t] = psi[t] - psides[t-1] + v[t-1] * delta[t-1] / Lf * dt
       fg[x_start + i + 2]    = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
       fg[y_start + i + 2]    = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
-      fg[psi_start + i + 2]  = psi1 - (psi0 + v0 * delta0 / Lf * dt);
+      fg[psi_start + i + 2]  = psi1 - (psi0 - v0 * delta0 / Lf * dt);
       fg[v_start + i + 2]    = v1 - (v0 + a0 * dt);
       fg[cte_start + i + 2]  = cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
-      fg[epsi_start + i + 2] = epsi1 - ((psi0 - psides0) + v0 * delta0 / Lf * dt);
+      fg[epsi_start + i + 2] = epsi1 - ((psi0 - psides0) - v0 * delta0 / Lf * dt);
 
     }
 
@@ -150,7 +152,7 @@ MPC::~MPC() {}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
-  //size_t i;
+  size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   // Initialise state
@@ -165,20 +167,20 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // For example: If the state is a 4 element vector, the actuators is a 2
   // element vector and there are 10 timesteps. The number of variables is:
   // 4 * 10 + 2 * 9
-  size_t n_vars = 6 * N + 2 * (N - 1);
+  size_t n_vars =  N * 6 + 2 * (N - 1);
   
   // Set the number of constraints
-  size_t n_constraints = 6 * N;
+  size_t n_constraints = N * 6;
 
 
-  cout << "Variable Initialise" << endl;
+  if (debugmode) { cout << "VAR INIT START" << endl; };
 
 
   // Initial value of the independent variables.
-  // SHOULD BE 0 besides initial state.
+  // These should be 0 besides initial state.
   Dvector vars(n_vars);
   for (int i = 0; i < n_vars; i++) {
-    vars[i] = 0.0;
+    vars[i] = 0;
   }
 
   Dvector vars_lowerbound(n_vars);
@@ -196,25 +198,25 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // Set upper and lower limits of delta (steering angle) to -25 to 25
   // degrees (in radians)
   for (int i = delta_start; i < a_start; i++) {
-    vars_lowerbound[i] = -0.436332 * Lf;
-    vars_upperbound[i] = 0.436332 * Lf;
+    vars_lowerbound[i] =  -0.436332 * Lf; // -1.0
+    vars_upperbound[i] =  0.436332 * Lf;   // 1.0
   }
 
   // Set upper and lower limits to accelerations to -1 to 1.
-  for (int i = a_start; i < N - 1; i++) {
+  for (int i = a_start; i < n_vars; i++) {
     vars_lowerbound[i] = -1.0;
     vars_upperbound[i] = 1.0;
   }
 
-  cout << "Variable Initialise End" << endl;
+  if (debugmode) { cout << "VAR INIT END" << endl; };
 
   // Lower and upper limits for the constraints
   // Should be 0 besides initial state.
   Dvector constraints_lowerbound(n_constraints);
   Dvector constraints_upperbound(n_constraints);
   for (int i = 0; i < n_constraints; i++) {
-    constraints_lowerbound[i] = 0.0;
-    constraints_upperbound[i] = 0.0;
+    constraints_lowerbound[i] = 0;
+    constraints_upperbound[i] = 0;
   }
 
   // Set constraints upper and lower bound to initial state
@@ -232,12 +234,12 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[cte_start] = cte;
   constraints_upperbound[epsi_start] = epsi;
   
-  cout << "Constraint Initialise End" << endl;
+  if (debugmode) { cout << "CONSTRAINT INIT END" << endl; };
 
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);
 
-  cout << "FG Eval END" << endl;
+  if (debugmode) { cout << "FG EVAL END" << endl; }
 
 
   // SEGMENTATION FAULT OCCURS BELOW HERE
@@ -263,13 +265,13 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   options += "Numeric max_cpu_time          0.5\n";
 
 
-  cout << "OPTIONS END" << endl;
+  if (debugmode) { cout << "OPTIONS END" << endl; };
 
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
 
-  cout << "START SOLVER" << endl;
+  if (debugmode) { cout << "START SOLVER" << endl; };
 
   // SEGMENTATION FAULT WITH SOLVER? 
   // NEED TO INVESTIGATE
@@ -280,13 +282,13 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
       constraints_upperbound, fg_eval, solution);
 
 
-  cout << "END SOLVER" << endl;
+  if (debugmode) { cout << "END SOLVER" << endl; };
 
   // Check some of the solution values
   ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
 
 
-  cout << "COST START" << endl;
+  // cout << "COST START" << endl;
 
   // Cost
   auto cost = solution.obj_value;
@@ -299,7 +301,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // creates a 2 element double vector.
 
 
-  cout << "Result Start" << endl;
+  if (debugmode) { cout << "Result Start" << endl; };
 
   vector<double> result;
 
