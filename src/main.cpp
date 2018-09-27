@@ -97,6 +97,7 @@ int main() {
           // Adjust car coordinates
 
           bool debugmode = true;
+          const double Lf = 2.67;
 
 
           for (int i = 0; i < ptsx.size(); i++ ) {
@@ -129,6 +130,31 @@ int main() {
           double throttle_value =  j[1]["throttle"];
 
 
+
+
+          // Use equations of motion to predict where vehicle should be 
+          // after time delay (latency)
+          // Readings we receive are from 100ms in the past, 
+          // therefore to predict the current location to best accuracy
+          // use equations of motion.
+
+
+          // x_t+1   = x_t + v * cost(psi) * dt
+          // y_t+1   = y_t + v * sin(psi) * dt
+          // psi_t+1 = psi_t + v_t / Lf * delta_t * dt
+          // v_t+1   = v_t + a_t * dt
+
+
+
+
+
+
+
+
+
+
+
+
           Eigen::VectorXd state(6);
           state << 0, 0, 0, v, cte, epsi;
 
@@ -149,8 +175,6 @@ int main() {
           */
 
 
-
-          const double Lf = 2.67;
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
