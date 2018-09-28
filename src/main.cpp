@@ -96,10 +96,15 @@ int main() {
           // TODO: 
           // Adjust car coordinates
 
-          bool debugmode = true;
+          // Flags for debugging
+          bool debug_mode = false;
+          bool controller_data_mode = false;
+          bool equation_mode = true;
+          
+          // Vehicle constant
           const double Lf = 2.67;
 
-
+          // Convert points from map to car coordinates, shift reference angle
           for (int i = 0; i < ptsx.size(); i++ ) {
 
             // shift car reference angle to 90 degrees
@@ -110,6 +115,11 @@ int main() {
             ptsy[i] = (shift_x * sin(0-psi) + shift_y * cos(0-psi));
 
           }
+
+          //cout << ptsx << endl;
+
+          //cout << "PX: " << px << endl;
+
 
           double* ptrx = &ptsx[0];
           Eigen::Map<Eigen::VectorXd> ptsx_transform(ptrx, 6);
@@ -124,13 +134,15 @@ int main() {
           double epsi = -atan(coeffs[1]);
 
 
-          // USE FOR LATENCY
+          // USED FOR LATENCY MODEL
           // predict vehicle state, in future, use that to control MPC
           double steer_value = j[1]["steering_angle"];
           double throttle_value =  j[1]["throttle"];
 
 
-
+          // dt in seconds, latency in ms
+          double dt = 0.1;
+          int latency = dt * 1000;
 
           // Use equations of motion to predict where vehicle should be 
           // after time delay (latency)
@@ -138,33 +150,61 @@ int main() {
           // therefore to predict the current location to best accuracy
           // use equations of motion.
 
+          // Because of change in coordiante system
+          // System now in car coordinates. centre of car > 0, 0, psi0 = 0
+          // car orientated straight ahead in car coordinate system
+          // x_t = 0
+          // y_t = 0
+          // psi_t = 0
+          // v_t = v
+          // cte_t = cte
+          // epsi_t = epsi = -atan(coeffs[1])
+          // a_t = throttle_value?
+          // delta_t = steer_angle?
 
-          // x_t+1   = x_t + v * cost(psi) * dt
-          // y_t+1   = y_t + v * sin(psi) * dt
-          // psi_t+1 = psi_t + v_t / Lf * delta_t * dt
-          // v_t+1   = v_t + a_t * dt
+          // x_t+1    = x_t + v * cos(psi) * dt
+          // y_t+1    = y_t + v * sin(psi) * dt
+          // psi_t+1  = psi_t - v_t / Lf * delta_t * dt
+          // v_t+1    = v_t + a_t * dt
+          // cte_t+1  = f(x_t) - y_t + v_t * sin(epsi_t) * dt
+          // epsi_t+1 = psi_t - psi_t_des + v_t / Lf * delta_t * dt
+
+          // These can be simplified
+          double x_dt     = 0 + v * cos(0) * dt;
+          double y_dt     = 0 + v * sin(0) * dt;
+          double psi_dt   = 0 - v / Lf * steer_value * dt;
+          double v_dt     = v + throttle_value * dt;
+          double cte_dt   = cte - 0 + v * sin(epsi) * dt;
+          double epsi_dt  = 0 - epsi + v / Lf * steer_value * dt;
 
 
+          
+          if (equation_mode) {
 
+            cout << "Latency Update Equations:"                                                 << endl;
+            cout << "       t     t+dt         diff"                                        << endl;
+            cout << "X    : " << "0"  << "  ||  "  << x_dt    << "  || " << abs(0 - x_dt)       << endl;
+            cout << "Y    : " << "0"  << "  ||  "  << y_dt    << "  || " << abs(0 - y_dt)       << endl;
+            cout << "PSI  : " << "0"  << "  ||  "  << psi_dt  << "  || " << abs(0 - psi_dt)     << endl;
+            cout << "V    : " << v    << "  ||  "  << v_dt    << "  || " << abs(v - v_dt)       << endl;
+            cout << "CTE  : " << cte  << "  ||  "  << cte_dt  << "  || " << abs(cte - cte_dt)   << endl;
+            cout << "EPSI : " << epsi << "  ||  "  << epsi_dt << "  || " << abs(epsi - epsi_dt) << endl;
 
+          } 
 
+        
 
-
-
-
-
-
-
+          // Update state equation
           Eigen::VectorXd state(6);
           state << 0, 0, 0, v, cte, epsi;
 
 
-          if (debugmode) { cout << " SOLVE START " << endl; };
+          if (debug_mode) { cout << "SOLVE START " << endl; };
           
           // Solve MPC
           auto vars = mpc.Solve(state, coeffs);
 
-          if (debugmode) { cout << " SOLVE FINISHED" << endl; };
+          if (debug_mode) { cout << "SOLVE FINISHED" << endl; };
 
 
           /*
@@ -182,7 +222,7 @@ int main() {
           msgJson["steering_angle"] = vars[0] / (deg2rad(25) * Lf);
           msgJson["throttle"] = vars[1];
 
-          //Display the MPC predicted trajectory 
+          // Display the MPC predicted trajectory 
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
 
@@ -226,7 +266,8 @@ int main() {
 
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          if (debugmode) { std::cout << msg << std::endl; };
+          if (controller_data_mode) { std::cout << msg << std::endl; };
+
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.
@@ -236,7 +277,8 @@ int main() {
           //
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
-          // this_thread::sleep_for(chrono::milliseconds(100));
+
+          this_thread::sleep_for(chrono::milliseconds(latency));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {

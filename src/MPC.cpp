@@ -9,7 +9,8 @@ using CppAD::AD;
 size_t N = 10;
 double dt = 0.1;
 
-bool debugmode = true;
+// Flags for debugging
+bool debug_mode = false;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -52,7 +53,7 @@ class FG_eval {
     // NOTE: You'll probably go back and forth between this function and
     // the Solver function below.
 
-    if (debugmode) { cout << "FG COST INIT START " << endl; };
+    if (debug_mode) { cout << "FG COST INIT START " << endl; };
 
     // Initialise Cost Function
     fg[0] = 0;
@@ -84,7 +85,7 @@ class FG_eval {
 
     }
 
-    if (debugmode) { cout << "FG CONSTRAINT START" << endl; };
+    if (debug_mode) { cout << "FG CONSTRAINT START" << endl; };
 
     // Setup Initial Constraints using initial conditions
     fg[x_start + 1] = vars[x_start];
@@ -152,7 +153,7 @@ MPC::~MPC() {}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
-  size_t i;
+  //size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   // Initialise state
@@ -173,7 +174,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   size_t n_constraints = N * 6;
 
 
-  if (debugmode) { cout << "VAR INIT START" << endl; };
+  if (debug_mode) { cout << "VAR INIT START" << endl; };
 
 
   // Initial value of the independent variables.
@@ -208,7 +209,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars_upperbound[i] = 1.0;
   }
 
-  if (debugmode) { cout << "VAR INIT END" << endl; };
+  if (debug_mode) { cout << "VAR INIT END" << endl; };
 
   // Lower and upper limits for the constraints
   // Should be 0 besides initial state.
@@ -234,17 +235,12 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[cte_start] = cte;
   constraints_upperbound[epsi_start] = epsi;
   
-  if (debugmode) { cout << "CONSTRAINT INIT END" << endl; };
+  if (debug_mode) { cout << "CONSTRAINT INIT END" << endl; };
 
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);
 
-  if (debugmode) { cout << "FG EVAL END" << endl; }
-
-
-  // SEGMENTATION FAULT OCCURS BELOW HERE
-  // NEED TO INVESTIGATE
-
+  if (debug_mode) { cout << "FG EVAL END" << endl; }
 
   //
   // NOTE: You don't have to worry about these options
@@ -265,16 +261,13 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   options += "Numeric max_cpu_time          0.5\n";
 
 
-  if (debugmode) { cout << "OPTIONS END" << endl; };
+  if (debug_mode) { cout << "OPTIONS END" << endl; };
 
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
 
-  if (debugmode) { cout << "START SOLVER" << endl; };
-
-  // SEGMENTATION FAULT WITH SOLVER? 
-  // NEED TO INVESTIGATE
+  if (debug_mode) { cout << "START SOLVER" << endl; };
 
   // solve the problem
   CppAD::ipopt::solve<Dvector, FG_eval>(
@@ -282,26 +275,23 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
       constraints_upperbound, fg_eval, solution);
 
 
-  if (debugmode) { cout << "END SOLVER" << endl; };
+  if (debug_mode) { cout << "END SOLVER" << endl; };
 
   // Check some of the solution values
   ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
-
-
-  // cout << "COST START" << endl;
 
   // Cost
   auto cost = solution.obj_value;
   std::cout << "Cost " << cost << std::endl;
 
-  // TODO: Return the first actuator values. The variables can be accessed with
+  // Return the first actuator values. The variables can be accessed with
   // `solution.x[i]`.
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
 
 
-  if (debugmode) { cout << "Result Start" << endl; };
+  if (debug_mode) { cout << "Result Start" << endl; };
 
   vector<double> result;
 
@@ -315,7 +305,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   }
 
-  cout << "Result End" << endl;
+  if (debug_mode) { cout << "Result End" << endl; };
 
   return result;
 }
