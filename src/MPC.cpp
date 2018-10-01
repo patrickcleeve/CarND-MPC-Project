@@ -27,7 +27,7 @@ const double Lf = 2.67;
 // Reference Values
 double ref_cte = 0;
 double ref_epsi = 0;
-double ref_v = 50;
+double ref_v = 100;
 
 // Constraint indicies
 size_t x_start = 0;

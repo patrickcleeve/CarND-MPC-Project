@@ -93,9 +93,6 @@ int main() {
           double v = j[1]["speed"];
 
 
-          // TODO: 
-          // Adjust car coordinates
-
           // Flags for debugging
           bool debug_mode = false;
           bool controller_data_mode = false;
@@ -116,11 +113,6 @@ int main() {
 
           }
 
-          //cout << ptsx << endl;
-
-          //cout << "PX: " << px << endl;
-
-
           double* ptrx = &ptsx[0];
           Eigen::Map<Eigen::VectorXd> ptsx_transform(ptrx, 6);
 
@@ -133,9 +125,8 @@ int main() {
           double cte = polyeval(coeffs, 0);
           double epsi = -atan(coeffs[1]);
 
-
-          // USED FOR LATENCY MODEL
-          // predict vehicle state, in future, use that to control MPC
+          
+          // steer value needs to be inverted (map coords are LH, car is RH)
           double steer_value = j[1]["steering_angle"];
           double throttle_value =  j[1]["throttle"];
 
@@ -159,8 +150,8 @@ int main() {
           // v_t = v
           // cte_t = cte
           // epsi_t = epsi = -atan(coeffs[1])
-          // a_t = throttle_value?
-          // delta_t = steer_angle?
+          // a_t = throttle_value
+          // delta_t = steer_angle
 
           // x_t+1    = x_t + v * cos(psi) * dt
           // y_t+1    = y_t + v * sin(psi) * dt
@@ -176,13 +167,11 @@ int main() {
           double v_dt     = v + throttle_value * dt;
           double cte_dt   = cte - 0 + v * sin(epsi) * dt;
           double epsi_dt  = 0 - epsi + v / Lf * steer_value * dt;
-
-
           
           if (equation_mode) {
 
             cout << "Latency Update Equations:"                                                 << endl;
-            cout << "       t     t+dt         diff"                                        << endl;
+            cout << "       t     t+dt         diff"                                            << endl;
             cout << "X    : " << "0"  << "  ||  "  << x_dt    << "  || " << abs(0 - x_dt)       << endl;
             cout << "Y    : " << "0"  << "  ||  "  << y_dt    << "  || " << abs(0 - y_dt)       << endl;
             cout << "PSI  : " << "0"  << "  ||  "  << psi_dt  << "  || " << abs(0 - psi_dt)     << endl;
@@ -192,12 +181,9 @@ int main() {
 
           } 
 
-        
-
           // Update state equation
           Eigen::VectorXd state(6);
-          state << 0, 0, 0, v, cte, epsi;
-
+          state << x_dt, y_dt, psi_dt, v_dt, cte_dt, epsi_dt;
 
           if (debug_mode) { cout << "SOLVE START " << endl; };
           
@@ -207,22 +193,13 @@ int main() {
           if (debug_mode) { cout << "SOLVE FINISHED" << endl; };
 
 
-          /*
-          * TODO: Calculate steering angle and throttle using MPC.
-          *
-          * Both are in between [-1, 1].
-          *
-          */
-
-
-
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
           msgJson["steering_angle"] = vars[0] / (deg2rad(25) * Lf);
           msgJson["throttle"] = vars[1];
 
-          // Display the MPC predicted trajectory 
+          // Display the MPC predicted trajectory (Green)
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
 
@@ -245,7 +222,8 @@ int main() {
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
 
-          //Display the waypoints/reference line
+
+          // Display the waypoints/reference line (Yellow)
           vector<double> next_x_vals;
           vector<double> next_y_vals;
 
