@@ -160,7 +160,9 @@ int main() {
           // cte_t+1  = f(x_t) - y_t + v_t * sin(epsi_t) * dt
           // epsi_t+1 = psi_t - psi_t_des + v_t / Lf * delta_t * dt
 
+          // Latency predicted equations of motion
           // These can be simplified
+
           double x_dt     = 0 + v * cos(0) * dt;
           double y_dt     = 0 + v * sin(0) * dt;
           double psi_dt   = 0 - v / Lf * steer_value * dt;
